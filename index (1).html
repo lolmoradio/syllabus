@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chronologische Tijdbalk - Verplichte Jaartallen</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        #timeline-legend {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .legend-item, .legend-button {
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            padding: 8px 12px;
+            border-radius: 20px; /* Meer afgerond voor pil-look */
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            background-color: #e9ecef; /* Neutrale achtergrond */
+            border: 1px solid #ced4da;
+        }
+        
+        .legend-item:hover, .legend-button:hover {
+            background-color: #dee2e6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .legend-item.active-filter {
+            background-color: #007bff; /* Duidelijke actieve kleur */
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,123,255,0.3);
+        }
+         .legend-item.active-filter .legend-color-box {
+            border-color: white;
+        }
+
+
+        .legend-color-box {
+            width: 18px; /* Iets kleiner */
+            height: 18px;
+            margin-right: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .legend-button {
+             background-color: #28a745; /* Groen voor "Toon Alles" */
+             color: white;
+             border: none;
+        }
+        .legend-button:hover {
+            background-color: #218838;
+        }
+
+
+        #timeline-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden; 
+            background-color: #ffffff;
+            padding: 20px 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative; 
+        }
+        
+        #timeline-wrapper {
+            position: relative; 
+            padding-top: 50px; /* Ruimte voor de as */
+        }
+
+        #timeline-axis {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%; 
+            height: 40px;
+            border-bottom: 2px solid #3498db;
+            z-index: 1;
+        }
+
+        .year-marker {
+            position: absolute;
+            bottom: 5px; 
+            transform: translateX(-50%);
+            font-size: 0.8em;
+            color: #2980b9;
+            padding: 2px 4px;
+            background-color: #fff;
+            border-radius: 3px;
+        }
+        
+        .year-marker::before {
+            content: '';
+            position: absolute;
+            bottom: -7px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 7px;
+            background-color: #3498db;
+        }
+
+        #timeline-events {
+            position: relative; 
+            width: 100%; 
+        }
+
+        .event-box {
+            position: absolute;
+            padding: 8px;
+            border-radius: 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+            font-size: 0.75em; 
+            overflow: hidden;
+            white-space: normal; 
+            display: flex; 
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid #7f8c8d;
+            color: #2c3e50; 
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease-out;
+            box-sizing: border-box; 
+            cursor: pointer; 
+        }
+
+        .event-box:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 10; 
+        }
+
+        .event-box strong {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 3px;
+            color: #34495e;
+        }
+        .event-box .description {
+            max-height: 3.6em; 
+            overflow: hidden;
+            text-overflow: ellipsis; 
+            display: -webkit-box;
+            -webkit-line-clamp: 3; 
+            -webkit-box-orient: vertical;
+        }
+
+        /* Stijlen voor de Modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 20; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 25px;
+            border: 1px solid #888;
+            width: 85%; 
+            max-width: 600px;
+            border-radius: 10px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 32px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #modal-title { 
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        #modal-category {
+            font-style: italic;
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+        #modal-description {
+            font-size: 1em;
+            line-height: 1.6;
+            color: #333;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Chronologische Tijdbalk - Verplichte Jaartallen</h1>
+
+    <div id="timeline-legend">
+        <div class="legend-button" id="show-all-btn">Toon Alles</div>
+    </div>
+
+    <div id="timeline-container">
+        <div id="timeline-wrapper">
+            <div id="timeline-axis"></div>
+            <div id="timeline-events"></div>
+        </div>
+    </div>
+
+    <div id="event-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 id="modal-title"></h3>
+            <p id="modal-category"></p>
+            <p id="modal-description"></p>
+        </div>
+    </div>
+
+    <script>
+        // Verplichte jaartallen data
+        const mandatoryEventsData = [
+            // Context 1: Het Britse Rijk (1585–1900)
+            { startYear: 1585, endYear: null, category: "Context 1: Britse Rijk", description: "Begin Engelse kolonisaties in Amerika." },
+            { startYear: 1620, endYear: null, category: "Context 1: Britse Rijk", description: "Pilgrim Fathers stichten kolonie." },
+            { startYear: 1776, endYear: null, category: "Context 1: Britse Rijk", description: "Onafhankelijkheidsverklaring Verenigde Staten." },
+            { startYear: 1807, endYear: null, category: "Context 1: Britse Rijk", description: "Verbod slavenhandel in het Britse rijk." },
+            { startYear: 1833, endYear: null, category: "Context 1: Britse Rijk", description: "Afschaffing slavernij in Britse koloniën." },
+            { startYear: 1851, endYear: null, category: "Context 1: Britse Rijk", description: "Eerste Wereldtentoonstelling (Londen)." },
+            { startYear: 1885, endYear: null, category: "Context 1: Britse Rijk", description: "Oprichting Indian National Congress." },
+
+            // Context 2: Duitsland in Europa (1918–1991)
+            { startYear: 1918, endYear: null, category: "Context 2: Duitsland", description: "Einde WO I, uitroeping Weimarrepubliek." },
+            { startYear: 1919, endYear: null, category: "Context 2: Duitsland", description: "Verdrag van Versailles." },
+            { startYear: 1923, endYear: null, category: "Context 2: Duitsland", description: "Hyperinflatie Duitsland." },
+            { startYear: 1924, endYear: null, category: "Context 2: Duitsland", description: "Dawesplan." },
+            { startYear: 1929, endYear: null, category: "Context 2: Duitsland", description: "Beurskrach." },
+            { startYear: 1933, endYear: null, category: "Context 2: Duitsland", description: "Hitler wordt rijkskanselier; Rijksdagbrand; Machtigingswet." },
+            { startYear: 1939, endYear: null, category: "Context 2: Duitsland", description: "Inval in Polen; begin WO II." },
+            { startYear: 1945, endYear: null, category: "Context 2: Duitsland", description: "Einde WO II; opdeling Duitsland." },
+            { startYear: 1948, endYear: null, category: "Context 2: Duitsland", description: "Blokkade van Berlijn." },
+            { startYear: 1949, endYear: null, category: "Context 2: Duitsland", description: "Oprichting BRD en DDR." },
+            { startYear: 1953, endYear: null, category: "Context 2: Duitsland", description: "Opstand in de DDR." },
+            { startYear: 1961, endYear: null, category: "Context 2: Duitsland", description: "Bouw van de Berlijnse Muur." },
+            { startYear: 1972, endYear: null, category: "Context 2: Duitsland", description: "BRD en DDR erkennen elkaar." },
+            { startYear: 1989, endYear: null, category: "Context 2: Duitsland", description: "Val van de Berlijnse Muur." },
+            { startYear: 1990, endYear: null, category: "Context 2: Duitsland", description: "Duitse hereniging." },
+            { startYear: 1991, endYear: null, category: "Context 2: Duitsland", description: "Val van de Sovjet-Unie." },
+
+            // Context 3: Nederland 1948–2008
+            { startYear: 1948, endYear: null, category: "Context 3: Nederland", description: "Marshallhulp; geleide loonpolitiek." },
+            { startYear: 1957, endYear: null, category: "Context 3: Nederland", description: "Invoering AOW." },
+            { startYear: 1973, endYear: null, category: "Context 3: Nederland", description: "Oliecrisis." },
+            { startYear: 1980, endYear: null, category: "Context 3: Nederland", description: "Kroningsrellen." },
+            { startYear: 1985, endYear: null, category: "Context 3: Nederland", description: "Verdrag van Schengen." },
+            { startYear: 1992, endYear: null, category: "Context 3: Nederland", description: "Verdrag van Maastricht." },
+            { startYear: 1995, endYear: null, category: "Context 3: Nederland", description: "Val van Srebrenica." },
+            { startYear: 2001, endYear: null, category: "Context 3: Nederland", description: "Aanslagen 11 september." },
+            { startYear: 2002, endYear: null, category: "Context 3: Nederland", description: "Moord op Pim Fortuyn." },
+            { startYear: 2008, endYear: null, category: "Context 3: Nederland", description: "Financiële wereldcrisis." }
+        ];
+
+        const categoryColors = {
+            "Tijdvak 5": "#FFADAD", 
+            "Tijdvak 6": "#FFD6A5", 
+            "Tijdvak 7": "#FDFFB6", 
+            "Tijdvak 8": "#CAFFBF", 
+            "Tijdvak 9": "#9BF6FF", 
+            "Tijdvak 10": "#A0C4FF",
+            "Context 1: Britse Rijk": "#BDB2FF", 
+            "Context 2: Duitsland": "#FFC6FF", 
+            "Context 3: Nederland": "#E0BBE4", 
+            "default": "#D3D3D3" 
+        };
+
+        let currentActiveFilter = null; // Houdt de actieve contextfilter bij
+
+        function getColorForCategory(category) {
+            // Exacte match eerst
+            if (categoryColors[category]) {
+                return categoryColors[category];
+            }
+            // Fallback voor Tijdvak/Context nummer, hoewel minder relevant met de nieuwe data
+            const match = category.match(/^(Tijdvak \d+|Context \d+)/);
+            if (match && categoryColors[match[0]]) {
+                return categoryColors[match[0]];
+            }
+            return categoryColors["default"];
+        }
+
+        function renderTimeline(eventsToRender) {
+            const timelineEventsContainer = document.getElementById('timeline-events');
+            const timelineAxis = document.getElementById('timeline-axis');
+            const timelineWrapper = document.getElementById('timeline-wrapper');
+
+            // Leegmaken van vorige events en markers
+            timelineEventsContainer.innerHTML = '';
+            timelineAxis.innerHTML = ''; // Ook jaarmarkeringen opnieuw maken
+
+            if (!eventsToRender || eventsToRender.length === 0) {
+                timelineEventsContainer.innerHTML = '<p style="text-align:center; padding:20px;">Geen gebeurtenissen om weer te geven voor deze selectie.</p>';
+                timelineWrapper.style.height = `100px`; // Minimale hoogte
+                return;
+            }
+            
+            // Sorteer events (belangrijk voor lane assignment)
+            eventsToRender.sort((a, b) => {
+                if (a.startYear !== b.startYear) return a.startYear - b.startYear;
+                const aEnd = a.endYear || a.startYear;
+                const bEnd = b.endYear || b.startYear;
+                return aEnd - bEnd;
+            });
+
+            const minYear = Math.min(...eventsToRender.map(e => e.startYear));
+            const maxYear = Math.max(...eventsToRender.map(e => e.endYear || e.startYear));
+
+            const basePixelPerYear = 15; // Iets meer ruimte per jaar
+            const minEventBoxWidth = 100; 
+            const eventBoxHeight = 60; 
+            const eventBoxMargin = 5;  
+
+            const totalTimelineWidth = Math.max((maxYear - minYear + 1) * basePixelPerYear + 200, 800); // Min breedte + padding
+            timelineAxis.style.width = `${totalTimelineWidth}px`;
+            timelineEventsContainer.style.width = `${totalTimelineWidth}px`;
+
+            // Genereer jaarmarkeringen dynamisch
+            const yearRange = maxYear - minYear;
+            let yearMarkerInterval = 50;
+            if (yearRange <= 50) yearMarkerInterval = 5;
+            else if (yearRange <= 100) yearMarkerInterval = 10;
+            else if (yearRange <= 250) yearMarkerInterval = 25;
+
+
+            for (let year = minYear - (minYear % yearMarkerInterval); year <= maxYear + yearMarkerInterval; year += yearMarkerInterval) {
+                if (year < minYear && (year + yearMarkerInterval < minYear)) continue;
+                 const actualYearToDisplay = Math.max(year, minYear); // Zorg dat marker niet voor minYear start
+                if (actualYearToDisplay > maxYear && year > maxYear) continue;
+
+
+                const marker = document.createElement('div');
+                marker.className = 'year-marker';
+                marker.textContent = actualYearToDisplay;
+                // Positioneer de eerste marker correct als minYear niet een interval veelvoud is
+                let markerPosition = (actualYearToDisplay - minYear) * basePixelPerYear;
+                if (actualYearToDisplay === minYear && minYear % yearMarkerInterval !== 0) {
+                     markerPosition = 0; // Start bij 0 voor de eerste marker
+                }
+
+                marker.style.left = `${markerPosition}px`;
+                timelineAxis.appendChild(marker);
+                if (actualYearToDisplay === minYear && minYear % yearMarkerInterval !==0) { // Voeg de volgende marker toe als de eerste is aangepast
+                    const nextMarkerYear = minYear - (minYear % yearMarkerInterval) + yearMarkerInterval;
+                    if (nextMarkerYear <= maxYear) {
+                        const nextMarker = document.createElement('div');
+                        nextMarker.className = 'year-marker';
+                        nextMarker.textContent = nextMarkerYear;
+                        nextMarker.style.left = `${(nextMarkerYear - minYear) * basePixelPerYear}px`;
+                        timelineAxis.appendChild(nextMarker);
+                    }
+                }
+            }
+            
+            const lanes = []; 
+
+            eventsToRender.forEach(event => {
+                const startPixel = (event.startYear - minYear) * basePixelPerYear;
+                const effectiveEndYear = event.endYear || event.startYear;
+                const durationYears = Math.max(effectiveEndYear - event.startYear + 1, 1); // Minimaal 1 jaar
+                
+                let calculatedWidth = durationYears * basePixelPerYear;
+                calculatedWidth = Math.max(calculatedWidth, basePixelPerYear / 2); // Minimaal halve jaarpixel breedte
+                
+                const displayWidth = Math.max(calculatedWidth, minEventBoxWidth);
+
+                let placedInLane = false;
+                for (let i = 0; i < lanes.length; i++) {
+                    let canPlace = true;
+                    for (const placedEvent of lanes[i]) {
+                        if (startPixel < placedEvent.left + placedEvent.width && 
+                            startPixel + displayWidth > placedEvent.left) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    if (canPlace) {
+                        lanes[i].push({ left: startPixel, width: displayWidth, top: event.laneIndex * (eventBoxHeight + eventBoxMargin) });
+                        event.laneIndex = i;
+                        placedInLane = true;
+                        break;
+                    }
+                }
+
+                if (!placedInLane) {
+                    lanes.push([{ left: startPixel, width: displayWidth, top: lanes.length * (eventBoxHeight + eventBoxMargin) }]);
+                    event.laneIndex = lanes.length - 1;
+                }
+
+                const eventDiv = document.createElement('div');
+                eventDiv.className = 'event-box';
+                eventDiv.style.left = `${startPixel}px`;
+                eventDiv.style.width = `${displayWidth}px`;
+                eventDiv.style.height = `${eventBoxHeight}px`;
+                eventDiv.style.top = `${event.laneIndex * (eventBoxHeight + eventBoxMargin)}px`;
+                eventDiv.style.backgroundColor = getColorForCategory(event.category);
+                
+                eventDiv.dataset.startYear = event.startYear;
+                if (event.endYear) eventDiv.dataset.endYear = event.endYear;
+                eventDiv.dataset.category = event.category;
+                eventDiv.dataset.description = event.description;
+                
+                const yearPrefix = event.endYear ? `${event.startYear}–${event.endYear}` : `${event.startYear}`;
+                eventDiv.innerHTML = `<strong>${yearPrefix}</strong><div class="description">${event.description}</div>`;
+                
+                timelineEventsContainer.appendChild(eventDiv);
+
+                eventDiv.addEventListener('click', function() {
+                    document.getElementById('modal-title').textContent = this.dataset.endYear ? `${this.dataset.startYear}–${this.dataset.endYear}` : this.dataset.startYear;
+                    document.getElementById('modal-category').textContent = `(${this.dataset.category})`;
+                    document.getElementById('modal-description').textContent = this.dataset.description;
+                    document.getElementById("event-modal").style.display = "block";
+                });
+            });
+            
+            const totalEventsHeight = lanes.length * (eventBoxHeight + eventBoxMargin);
+            timelineEventsContainer.style.height = `${Math.max(totalEventsHeight, 50)}px`; // Min hoogte voor container
+            timelineWrapper.style.height = `${Math.max(totalEventsHeight, 50) + 50}px`; // +50 voor as
+        }
+
+        function setupLegend() {
+            const legendContainer = document.getElementById('timeline-legend');
+            const uniqueContextCategories = [...new Set(mandatoryEventsData.map(e => e.category))].sort();
+
+            uniqueContextCategories.forEach(category => {
+                if (!category.startsWith("Context")) return; // Toon alleen contexten voor filter
+
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.dataset.contextFilter = category;
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color-box';
+                colorBox.style.backgroundColor = getColorForCategory(category);
+                
+                const legendText = document.createElement('span');
+                legendText.textContent = category;
+                
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(legendText);
+                legendContainer.appendChild(legendItem);
+
+                legendItem.addEventListener('click', function() {
+                    const filter = this.dataset.contextFilter;
+                    if (currentActiveFilter === filter) { // Klik nogmaals om te deactiveren
+                        currentActiveFilter = null;
+                        renderTimeline(mandatoryEventsData);
+                        this.classList.remove('active-filter');
+                    } else {
+                        currentActiveFilter = filter;
+                        const filteredEvents = mandatoryEventsData.filter(event => event.category === filter);
+                        renderTimeline(filteredEvents);
+                        // Update actieve status
+                        document.querySelectorAll('#timeline-legend .legend-item').forEach(item => item.classList.remove('active-filter'));
+                        this.classList.add('active-filter');
+                    }
+                });
+            });
+
+            document.getElementById('show-all-btn').addEventListener('click', () => {
+                currentActiveFilter = null;
+                renderTimeline(mandatoryEventsData);
+                document.querySelectorAll('#timeline-legend .legend-item').forEach(item => item.classList.remove('active-filter'));
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!mandatoryEventsData.length) {
+                console.error("Geen verplichte gebeurtenissen data gevonden.");
+                document.getElementById('timeline-events').innerHTML = '<p>Geen data om weer te geven.</p>';
+                return;
+            }
+            
+            setupLegend();
+            renderTimeline(mandatoryEventsData); // Initiele render met alle verplichte events
+
+            // Modal functionaliteit
+            const modal = document.getElementById("event-modal");
+            const span = document.getElementsByClassName("close-button")[0];
+            span.onclick = function() { modal.style.display = "none"; }
+            window.onclick = function(event) {
+                if (event.target == modal) { modal.style.display = "none"; }
+            }
+        });
+    </script>
+
+</body>
+</html>
